@@ -1,0 +1,106 @@
+name: "API Data Pipeline"
+description: "Fetch data from API, process it, and send notifications"
+version: "1.0.0"
+
+variables:
+  api_base_url: "https://jsonplaceholder.typicode.com"
+  notification_email: "admin@example.com"
+  max_retries: 3
+
+steps:
+  - name: "fetch_users"
+    type: "http"
+    params:
+      url: "${variables.api_base_url}/users"
+      method: "GET"
+      timeout: 10000
+    retries: 2
+    onError: "stop"
+
+  - name: "validate_data"
+    type: "script"
+    params:
+      language: "javascript"
+      code: |
+        const users = context.steps.fetch_users.data.data;
+        
+        if (!Array.isArray(users) || users.length === 0) {
+          throw new Error('No users found in API response');
+        }
+        
+        console.log(`Found ${users.length} users`);
+        
+        // Process and validate users
+        const validUsers = users.filter(user => 
+          user.email && user.name && user.email.includes('@')
+        );
+        
+        return {
+          totalUsers: users.length,
+          validUsers: validUsers.length,
+          users: validUsers
+        };
+
+  - name: "check_user_count"
+    type: "conditional"
+    params:
+      condition: "${steps.validate_data.data.validUsers} > 5"
+      then: "proceed"
+      else: "skip_processing"
+
+  - name: "process_users"
+    type: "script"
+    condition: "${steps.check_user_count.data.selectedBranch} === 'then'"
+    params:
+      language: "javascript"
+      code: |
+        const userData = context.steps.validate_data.data;
+        
+        // Create summary report
+        const report = {
+          timestamp: new Date().toISOString(),
+          summary: {
+            total: userData.totalUsers,
+            valid: userData.validUsers,
+            processedAt: new Date()
+          },
+          topUsers: userData.users.slice(0, 3).map(user => ({
+            name: user.name,
+            email: user.email,
+            company: user.company?.name || 'Unknown'
+          }))
+        };
+        
+        console.log('Generated user report:', JSON.stringify(report, null, 2));
+        return report;
+
+  - name: "wait_before_notification"
+    type: "wait"
+    params:
+      duration: 2
+      unit: "seconds"
+
+  - name: "send_success_notification"
+    type: "log"
+    condition: "${steps.validate_data.data.validUsers} > 0"
+    params:
+      message: "✅ Pipeline completed successfully! Processed ${steps.validate_data.data.validUsers} users"
+      level: "info"
+
+  - name: "final_status"
+    type: "script"
+    params:
+      language: "javascript"
+      code: |
+        const validation = context.steps.validate_data.data;
+        const processing = context.steps.process_users?.data;
+        
+        return {
+          pipelineStatus: 'completed',
+          executionTime: Date.now() - new Date(context.workflow.startTime).getTime(),
+          results: {
+            usersProcessed: validation.validUsers,
+            reportGenerated: !!processing,
+            timestamp: new Date().toISOString()
+          }
+        };

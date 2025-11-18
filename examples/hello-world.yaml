@@ -1,0 +1,39 @@
+name: "Hello World"
+description: "A simple introduction to workflow automation"
+version: "1.0.0"
+
+variables:
+  greeting: "Hello"
+  name: "World"
+
+steps:
+  - name: "welcome"
+    type: "log"
+    params:
+      message: "${variables.greeting}, ${variables.name}!"
+      level: "info"
+
+  - name: "fetch_inspiration"
+    type: "http"
+    params:
+      url: "https://api.github.com/zen"
+      method: "GET"
+
+  - name: "share_wisdom"
+    type: "script"
+    params:
+      language: "javascript"
+      code: |
+        const zen = context.steps.fetch_inspiration.data.data;
+        console.log('GitHub Zen of the day:', zen);
+        
+        return {
+          message: `Today's inspiration: "${zen}"`,
+          timestamp: new Date().toISOString()
+        };
+
+  - name: "farewell"
+    type: "log"
+    params:
+      message: "Workflow completed! 🎉"
+      level: "info"

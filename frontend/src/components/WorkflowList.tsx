@@ -46,16 +46,9 @@ export const WorkflowList: React.FC = () => {
       await deleteWorkflow(workflowId);
       showSuccess("Workflow deleted successfully!");
     } catch (error) {
-      // Only show error if the workflow is still in the list (meaning deletion actually failed)
-      const stillExists = workflows.some((w) => w.id === workflowId);
-      if (stillExists) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to delete workflow";
-        showError(errorMessage, "Delete Failed");
-      } else {
-        // Deletion succeeded but there was an error refreshing the list
-        showSuccess("Workflow deleted successfully!");
-      }
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete workflow";
+      showError(errorMessage, "Delete Failed");
     }
   };
 

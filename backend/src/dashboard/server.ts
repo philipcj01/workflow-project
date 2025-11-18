@@ -86,9 +86,19 @@ export async function startDashboard(
   // Get all workflows
   app.get("/api/workflows", async (req, res) => {
     try {
-      const storedWorkflows = await workflowStorage.listWorkflows();
+      let storedWorkflows: StoredWorkflow[] = [];
 
-      const workflows = storedWorkflows.map((stored) => ({
+      try {
+        storedWorkflows = await workflowStorage.listWorkflows();
+      } catch (dbError) {
+        // Log the database error but don't fail the request
+        console.warn("Database error when listing workflows:", dbError);
+        // Return empty array if database has issues
+        storedWorkflows = [];
+      }
+
+      // Ensure we always return a valid array
+      const workflows = (storedWorkflows || []).map((stored) => ({
         id: stored.id,
         name: stored.name,
         description: stored.description || "No description available",
@@ -98,9 +108,9 @@ export async function startDashboard(
 
       res.json(workflows);
     } catch (error) {
-      res.status(500).json({
-        error: error instanceof Error ? error.message : String(error),
-      });
+      console.error("Error in /api/workflows endpoint:", error);
+      // Always return an empty array instead of an error for listing workflows
+      res.json([]);
     }
   });
 
@@ -268,14 +278,19 @@ export async function startDashboard(
     try {
       const workflowId = req.params.id;
 
+      console.log(`Attempting to delete workflow with ID: ${workflowId}`);
+
       const deleted = await workflowStorage.deleteWorkflow(workflowId);
 
       if (!deleted) {
+        console.log(`Workflow not found for deletion: ${workflowId}`);
         return res.status(404).json({ error: "Workflow not found" });
       }
 
+      console.log(`Successfully deleted workflow: ${workflowId}`);
       res.json({ message: "Workflow deleted successfully" });
     } catch (error) {
+      console.error("Error in DELETE /api/workflows/:id:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : String(error),
       });
@@ -285,31 +300,66 @@ export async function startDashboard(
   // Get all executions
   app.get("/api/executions", async (req, res) => {
     try {
-      const workflowName = req.query.workflow as string;
-      const runs = await storage.listRuns(workflowName);
+      let runs: any[] = [];
 
-      const executions = runs.map((run) => ({
+      try {
+        const workflowName = req.query.workflow as string;
+        runs = await storage.listRuns(workflowName);
+      } catch (storageError) {
+        // Log the storage error but don't fail the request
+        console.warn("Storage error when listing executions:", storageError);
+        // Return empty array if storage has issues
+        runs = [];
+      }
+
+      // Helper function to safely convert timestamp to ISO string
+      const safeToISOString = (timestamp: any): string => {
+        if (!timestamp) return new Date().toISOString();
+
+        // If it's already a Date object
+        if (timestamp instanceof Date) {
+          return timestamp.toISOString();
+        }
+
+        // If it's a string or number, try to create a Date object
+        try {
+          const date = new Date(timestamp);
+          // Check if the date is valid
+          if (isNaN(date.getTime())) {
+            return new Date().toISOString();
+          }
+          return date.toISOString();
+        } catch (error) {
+          // Fallback to current time if conversion fails
+          return new Date().toISOString();
+        }
+      };
+
+      // Ensure we always return a valid array
+      const executions = (runs || []).map((run) => ({
         id: run.id,
         workflow: run.workflowName,
         status: run.status,
-        startTime: run.startTime.toISOString(),
-        endTime: run.endTime?.toISOString(),
-        steps: Object.entries(run.steps).map(([name, step]) => ({
-          id: name,
-          name: name,
-          type: "unknown",
-          status: step.success ? "completed" : "failed",
-          startTime: step.timestamp.toISOString(),
-          endTime: step.timestamp.toISOString(),
-          output: step.data,
-        })),
+        startTime: safeToISOString(run.startTime),
+        endTime: run.endTime ? safeToISOString(run.endTime) : undefined,
+        steps: Object.entries(run.steps || {}).map(
+          ([name, step]: [string, any]) => ({
+            id: name,
+            name: name,
+            type: "unknown",
+            status: step.success ? "completed" : "failed",
+            startTime: safeToISOString(step.timestamp),
+            endTime: safeToISOString(step.timestamp),
+            output: step.data,
+          })
+        ),
       }));
 
       res.json(executions);
     } catch (error) {
-      res.status(500).json({
-        error: error instanceof Error ? error.message : String(error),
-      });
+      console.error("Error in /api/executions endpoint:", error);
+      // Always return an empty array instead of an error for listing executions
+      res.json([]);
     }
   });
 

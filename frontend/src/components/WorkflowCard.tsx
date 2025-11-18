@@ -26,6 +26,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
   isExecuting,
 }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleExecute = () => {
     onExecute(workflow.id);
@@ -39,8 +40,26 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
     setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
-    onDelete(workflow.id);
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return; // Prevent double deletion
+
+    setIsDeleting(true);
+    try {
+      await onDelete(workflow.id);
+      setShowDeleteModal(false); // Close modal only after successful deletion
+    } catch (error) {
+      // Error handling is done in the parent component
+      // Just ensure we can try again if deletion failed
+      console.error("Delete failed:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    if (!isDeleting) {
+      setShowDeleteModal(false);
+    }
   };
 
   // Get a workflow icon based on workflow type or name
@@ -69,7 +88,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
       <div className="workflow-actions">
         <button
           onClick={handleExecute}
-          disabled={isExecuting}
+          disabled={isExecuting || isDeleting}
           className="run-button"
         >
           <Play size={16} />
@@ -80,6 +99,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
           onClick={handleEdit}
           className="edit-button"
           title="Edit workflow"
+          disabled={isDeleting}
         >
           <Edit size={16} />
           Edit
@@ -89,21 +109,23 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
           onClick={handleDelete}
           className="delete-button"
           title="Delete workflow"
+          disabled={isDeleting}
         >
           <Trash2 size={16} />
-          Delete
+          {isDeleting ? "Deleting..." : "Delete"}
         </button>
       </div>
 
       <ConfirmationModal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={handleCloseModal}
         onConfirm={handleConfirmDelete}
         title="Delete Workflow"
         message={`Are you sure you want to delete "${workflow.name}"? This action cannot be undone.`}
-        confirmText="Delete Workflow"
+        confirmText={isDeleting ? "Deleting..." : "Delete Workflow"}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

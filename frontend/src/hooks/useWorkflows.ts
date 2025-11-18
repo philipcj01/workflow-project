@@ -82,23 +82,47 @@ export const useWorkflows = () => {
       setError(null);
       try {
         await workflowService.deleteWorkflow(id);
+
+        // Immediately update local state to remove the deleted workflow
+        setWorkflows((prev) => prev.filter((w) => w.id !== id));
+
+        // Try to refresh from server, but don't fail if it doesn't work
         try {
-          await loadWorkflows(); // Refresh the list
+          await loadWorkflows();
         } catch (refreshError) {
-          // If deletion succeeded but refresh failed, don't throw
-          // The deletion was successful, just log silently for debugging
-          if (process.env.NODE_ENV === "development") {
+          // Log refresh error in development but don't propagate it
+          if (import.meta.env.DEV) {
             console.debug(
               "Workflow deleted successfully but failed to refresh list:",
               refreshError
             );
           }
+          // Clear any error state that might have been set by loadWorkflows
+          setError(null);
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to delete workflow"
-        );
-        throw err;
+        // More specific error handling for deletion
+        let errorMessage = "Failed to delete workflow";
+
+        if (err instanceof Error) {
+          if (err.message.includes("not found")) {
+            errorMessage =
+              "Workflow not found - it may have already been deleted";
+            // Remove from local state anyway since it doesn't exist
+            setWorkflows((prev) => prev.filter((w) => w.id !== id));
+          } else if (
+            err.message.includes("Network error") ||
+            err.message.includes("Unable to connect")
+          ) {
+            errorMessage =
+              "Unable to connect to server. Please check if the backend is running.";
+          } else {
+            errorMessage = err.message;
+          }
+        }
+
+        setError(errorMessage);
+        throw new Error(errorMessage);
       } finally {
         setLoading(false);
       }

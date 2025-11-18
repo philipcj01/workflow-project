@@ -10,6 +10,7 @@ interface ConfirmationModalProps {
   confirmText?: string;
   cancelText?: string;
   type?: "warning" | "danger";
+  isLoading?: boolean;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -21,17 +22,23 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   confirmText = "Confirm",
   cancelText = "Cancel",
   type = "warning",
+  isLoading = false,
 }) => {
   if (!isOpen) return null;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !isLoading) {
       onClose();
     }
   };
 
   const handleConfirm = () => {
+    if (isLoading) return; // Prevent action during loading
     onConfirm();
+  };
+
+  const handleClose = () => {
+    if (isLoading) return; // Prevent closing during loading
     onClose();
   };
 
@@ -42,7 +49,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <div className={`modal-icon ${type}`}>
             <AlertTriangle size={24} />
           </div>
-          <button className="modal-close" onClick={onClose}>
+          <button
+            className="modal-close"
+            onClick={handleClose}
+            disabled={isLoading}
+          >
             <X size={18} />
           </button>
         </div>
@@ -53,10 +64,24 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         </div>
 
         <div className="modal-actions">
-          <button onClick={onClose} className="cancel-btn">
+          <button
+            onClick={handleClose}
+            className="cancel-btn"
+            disabled={isLoading}
+          >
             {cancelText}
           </button>
-          <button onClick={handleConfirm} className={`confirm-btn ${type}`}>
+          <button
+            onClick={handleConfirm}
+            className={`confirm-btn ${type}`}
+            disabled={isLoading}
+          >
+            {isLoading && (
+              <div
+                className="loading-spinner"
+                style={{ width: "16px", height: "16px", marginRight: "0.5rem" }}
+              ></div>
+            )}
             {confirmText}
           </button>
         </div>

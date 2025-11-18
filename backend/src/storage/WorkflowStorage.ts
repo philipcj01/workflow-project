@@ -51,17 +51,26 @@ export class WorkflowStorage {
     await this.ensureInitialized();
     const run = promisify(this.db.run.bind(this.db)) as any;
 
-    await run(
-      `INSERT OR REPLACE INTO workflows 
-       (id, name, description, version, content, format, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      workflow.id,
-      workflow.name,
-      workflow.description || null,
-      workflow.version,
-      workflow.content,
-      workflow.format
-    );
+    try {
+      await run(
+        `INSERT OR REPLACE INTO workflows 
+         (id, name, description, version, content, format, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        workflow.id,
+        workflow.name,
+        workflow.description || null,
+        workflow.version,
+        workflow.content,
+        workflow.format
+      );
+    } catch (error) {
+      console.error("Error saving workflow:", error);
+      throw new Error(
+        `Failed to save workflow: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async getWorkflow(id: string): Promise<StoredWorkflow | null> {
@@ -81,18 +90,59 @@ export class WorkflowStorage {
     await this.ensureInitialized();
     const all = promisify(this.db.all.bind(this.db)) as any;
 
-    const rows: any[] = await all(
-      "SELECT * FROM workflows ORDER BY updated_at DESC"
-    );
-    return rows.map((row) => this.mapRowToWorkflow(row));
+    try {
+      const rows: any[] = await all(
+        "SELECT * FROM workflows ORDER BY updated_at DESC"
+      );
+      return rows.map((row) => this.mapRowToWorkflow(row));
+    } catch (error) {
+      console.error("Error listing workflows:", error);
+      throw new Error(
+        `Failed to list workflows: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async deleteWorkflow(id: string): Promise<boolean> {
     await this.ensureInitialized();
     const run = promisify(this.db.run.bind(this.db)) as any;
 
-    const result = await run("DELETE FROM workflows WHERE id = ?", id);
-    return result.changes > 0;
+    try {
+      // First check if the workflow exists
+      const get = promisify(this.db.get.bind(this.db)) as any;
+      const existingWorkflow = await get(
+        "SELECT id FROM workflows WHERE id = ?",
+        id
+      );
+
+      if (!existingWorkflow) {
+        console.log(`Workflow with id ${id} not found`);
+        return false;
+      }
+
+      // Delete the workflow
+      const result = await run("DELETE FROM workflows WHERE id = ?", id);
+
+      // SQLite3 run result should have a 'changes' property
+      const deleted = result?.changes > 0;
+
+      if (deleted) {
+        console.log(`Successfully deleted workflow with id: ${id}`);
+      } else {
+        console.log(`No workflow was deleted for id: ${id}`);
+      }
+
+      return deleted;
+    } catch (error) {
+      console.error("Error deleting workflow:", error);
+      throw new Error(
+        `Failed to delete workflow: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async updateWorkflow(
@@ -133,10 +183,19 @@ export class WorkflowStorage {
     setClause.push("updated_at = CURRENT_TIMESTAMP");
     values.push(id);
 
-    await run(
-      `UPDATE workflows SET ${setClause.join(", ")} WHERE id = ?`,
-      ...values
-    );
+    try {
+      await run(
+        `UPDATE workflows SET ${setClause.join(", ")} WHERE id = ?`,
+        ...values
+      );
+    } catch (error) {
+      console.error("Error updating workflow:", error);
+      throw new Error(
+        `Failed to update workflow: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   private mapRowToWorkflow(row: any): StoredWorkflow {

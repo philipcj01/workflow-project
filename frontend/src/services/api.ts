@@ -6,7 +6,8 @@ import type {
   WorkflowCreateRequest,
 } from "../types";
 
-const API_BASE_URL = "http://localhost:3001/api";
+// Use proxy configuration for development
+const API_BASE_URL = "/api";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

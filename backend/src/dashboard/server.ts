@@ -12,6 +12,8 @@ import { WaitStepExecutor } from "../steps/WaitStepExecutor";
 import { LogStepExecutor } from "../steps/LogStepExecutor";
 import { ScriptStepExecutor } from "../steps/ScriptStepExecutor";
 import { EmailStepExecutor } from "../steps/EmailStepExecutor";
+import { ConditionalStepExecutor } from "../steps/ConditionalStepExecutor";
+import * as fs from "fs/promises";
 
 export async function startDashboard(
   port: number,
@@ -20,6 +22,19 @@ export async function startDashboard(
   const app = express();
   const server = createServer(app);
   const wss = new WebSocketServer({ server });
+
+  // CORS middleware for React frontend
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+    } else {
+      next();
+    }
+  });
 
   app.use(express.json());
   app.use(express.static(path.join(__dirname, "public")));
@@ -34,6 +49,7 @@ export async function startDashboard(
   engine.registerStepExecutor(new LogStepExecutor());
   engine.registerStepExecutor(new ScriptStepExecutor());
   engine.registerStepExecutor(new EmailStepExecutor());
+  engine.registerStepExecutor(new ConditionalStepExecutor());
 
   // WebSocket connections for real-time updates
   const clients = new Set<any>();
@@ -53,7 +69,157 @@ export async function startDashboard(
     });
   }
 
-  // API Routes
+  // REST API Routes for React Frontend
+  
+  // Get all workflows
+  app.get("/api/workflows", async (req, res) => {
+    try {
+      // Load workflows from example files
+      const exampleDir = path.resolve(process.cwd(), "examples");
+      const workflows = [];
+      
+      try {
+        const files = await fs.readdir(exampleDir);
+        const yamlFiles = files.filter(file => file.endsWith('.yaml') || file.endsWith('.yml'));
+        
+        for (const file of yamlFiles) {
+          try {
+            const workflow = await WorkflowLoader.loadFromFile(path.join(exampleDir, file));
+            workflows.push({
+              id: path.basename(file, path.extname(file)),
+              name: workflow.name,
+              description: workflow.description,
+              version: workflow.version,
+              filePath: path.join(exampleDir, file)
+            });
+          } catch (error) {
+            logger.warn(`Failed to load workflow from ${file}:`, error);
+          }
+        }
+      } catch (error) {
+        logger.warn("Failed to load example workflows:", error);
+      }
+      
+      res.json(workflows);
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Execute a workflow by ID
+  app.post("/api/workflows/:id/execute", async (req, res) => {
+    try {
+      const workflowId = req.params.id;
+      const { variables = {} } = req.body;
+      
+      // Load workflow from examples
+      const exampleDir = path.resolve(process.cwd(), "examples");
+      const workflowFile = path.join(exampleDir, `${workflowId}.yaml`);
+      
+      let workflow;
+      try {
+        workflow = await WorkflowLoader.loadFromFile(workflowFile);
+      } catch (error) {
+        return res.status(404).json({ error: "Workflow not found" });
+      }
+
+      // Execute workflow
+      const run = await engine.execute(workflow, variables);
+
+      // Broadcast update to connected clients
+      broadcast({ type: "run_update", run });
+
+      res.json({
+        id: run.id,
+        workflow: workflow.name,
+        status: run.status,
+        startTime: run.startTime.toISOString(),
+        endTime: run.endTime?.toISOString(),
+        steps: Object.entries(run.steps).map(([name, step]) => ({
+          id: name,
+          name: name,
+          type: 'unknown', // We don't have step type in the result
+          status: step.success ? 'completed' : 'failed',
+          startTime: step.timestamp.toISOString(),
+          endTime: step.timestamp.toISOString(),
+          output: step.data
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Create a new workflow
+  app.post("/api/workflows", async (req, res) => {
+    try {
+      const { yaml } = req.body;
+
+      if (!yaml) {
+        return res.status(400).json({ error: "YAML content is required" });
+      }
+
+      // Parse and validate workflow
+      const workflow = await WorkflowLoader.loadFromString(yaml, "yaml");
+      
+      // Generate filename from workflow name
+      const filename = workflow.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.yaml';
+      const exampleDir = path.resolve(process.cwd(), "examples");
+      const filePath = path.join(exampleDir, filename);
+      
+      // Save workflow to examples directory
+      await WorkflowLoader.saveToFile(workflow, filePath);
+
+      res.json({
+        id: path.basename(filename, '.yaml'),
+        name: workflow.name,
+        description: workflow.description,
+        version: workflow.version,
+        filePath: filePath
+      });
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Get all executions
+  app.get("/api/executions", async (req, res) => {
+    try {
+      const workflowName = req.query.workflow as string;
+      const runs = await storage.listRuns(workflowName);
+      
+      const executions = runs.map(run => ({
+        id: run.id,
+        workflow: run.workflowName,
+        status: run.status,
+        startTime: run.startTime.toISOString(),
+        endTime: run.endTime?.toISOString(),
+        steps: Object.entries(run.steps).map(([name, step]) => ({
+          id: name,
+          name: name,
+          type: 'unknown',
+          status: step.success ? 'completed' : 'failed',
+          startTime: step.timestamp.toISOString(),
+          endTime: step.timestamp.toISOString(),
+          output: step.data
+        }))
+      }));
+      
+      res.json(executions);
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Original API routes for built-in dashboard
   app.get("/api/runs", async (req, res) => {
     try {
       const workflowName = req.query.workflow as string;

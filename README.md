@@ -1,183 +1,437 @@
-# Universal Workflow Automation Engine
+<div align="center">
 
-A lightweight, developer-friendly alternative to Zapier and N8N. Define workflows in YAML/JSON and execute them with built-in steps, custom plugins, and powerful automation capabilities.
+# 🔄 Universal Workflow Automation Engine
 
-## 🚀 Features
+*A lightning-fast, developer-friendly alternative to Zapier and N8N*
 
-- **YAML/JSON Workflow Definition** - Define complex workflows in simple, readable formats
-- **Built-in Steps** - HTTP requests, delays, loops, conditionals, email, JavaScript/TypeScript execution
-- **Plugin System** - Extend functionality with custom steps
-- **Web Dashboard** - Modern React-based UI for workflow management and monitoring
-- **Real-time Execution Tracking** - Monitor workflow executions with live status updates
-- **Visual Workflow Editor** - Create and edit workflows with syntax highlighting
-- **Persistent Storage** - SQLite and Redis support for workflow runs
-- **TypeScript First** - Full type safety and IntelliSense support
-- **Developer Experience** - Hot reloading, debugging, and comprehensive logging
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 
-## 📦 Installation
+**[🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [💻 Demo](#-live-demo) • [🤝 Contributing](#-contributing)**
+
+---
+
+*Define complex workflows in simple YAML/JSON • Execute with built-in steps and custom plugins • Monitor with a beautiful React dashboard*
+
+</div>
+
+## ✨ What Makes It Special?
+
+<table>
+<tr>
+<td width="50%">
+
+### 🎯 **Developer First**
+- **YAML/JSON Configuration** - Human-readable workflow definitions
+- **TypeScript Native** - Full type safety and IntelliSense
+- **Hot Reloading** - Instant feedback during development
+- **Rich CLI Tools** - Command-line workflow management
+
+</td>
+<td width="50%">
+
+### 🚀 **Production Ready**
+- **Real-time Monitoring** - Live execution tracking
+- **Persistent Storage** - SQLite with optional Redis
+- **Error Handling** - Comprehensive logging and debugging
+- **Scalable Architecture** - Plugin system for extensibility
+
+</td>
+</tr>
+</table>
+
+## 🎬 Live Demo
+
+> **Note:** Add screenshots or GIFs of your dashboard here
+
+| Dashboard Overview | Workflow Editor | Execution Monitoring |
+|:--:|:--:|:--:|
+| ![Dashboard](https://via.placeholder.com/300x200?text=Dashboard+Screenshot) | ![Editor](https://via.placeholder.com/300x200?text=Editor+Screenshot) | ![Monitoring](https://via.placeholder.com/300x200?text=Monitoring+Screenshot) |
+| *Manage all workflows in one place* | *Visual YAML editor with validation* | *Real-time execution tracking* |
+
+## 🚀 Quick Start
+
+### ⚡ One-Command Setup
 
 ```bash
+# Install globally
 npm install -g workflow-engine
+
+# Or clone and develop locally
+git clone https://github.com/your-username/workflow-engine.git
+cd workflow-engine
+npm run install:all
 ```
 
-Or use locally:
-```bash
-npm install workflow-engine
-```
+### 🎯 Create Your First Workflow
 
-## 🎯 Quick Start
+<details>
+<summary>📝 <strong>1. Create a workflow file</strong> <code>my-first-workflow.yaml</code></summary>
 
-1. Create a workflow file `hello-world.yaml`:
 ```yaml
-name: "Hello World Workflow"
-description: "A simple example workflow"
+name: "API Data Pipeline"
+description: "Fetch GitHub user data and process it"
 version: "1.0.0"
 
+variables:
+  username: "octocat"
+
 steps:
-  - name: "greet"
-    type: "log"
-    params:
-      message: "Hello, World!"
-  
-  - name: "fetch-data"
+  - name: "fetch-user"
     type: "http"
     params:
-      url: "https://api.github.com/users/octocat"
+      url: "https://api.github.com/users/${variables.username}"
       method: "GET"
-  
+      headers:
+        User-Agent: "WorkflowEngine/1.0"
+
   - name: "process-data"
     type: "script"
     params:
       language: "typescript"
       code: |
-        const user = context.steps['fetch-data'].response.data;
+        const user = context.steps['fetch-user'].response.data;
+        console.log(`Processing data for ${user.name}`);
+        
         return {
-          greeting: `Hello ${user.name}!`,
-          followers: user.followers
+          summary: `${user.name} has ${user.public_repos} repos and ${user.followers} followers`,
+          avatar: user.avatar_url,
+          profile: user.html_url
         };
+
+  - name: "log-result"
+    type: "log"
+    params:
+      message: "${steps.process-data.data.summary}"
+      level: "info"
 ```
 
-2. Run the workflow:
+</details>
+
+<details>
+<summary>🚀 <strong>2. Run the workflow</strong></summary>
+
 ```bash
-workflow-engine run hello-world.yaml
+# Execute workflow
+workflow-engine run my-first-workflow.yaml
+
+# Or with custom variables
+workflow-engine run my-first-workflow.yaml --var username=your-github-username
 ```
 
-3. Start the web dashboard:
+</details>
+
+<details>
+<summary>🌐 <strong>3. Start the web dashboard</strong></summary>
+
 ```bash
+# Start the dashboard server
 workflow-engine dashboard
+
+# Open in browser
+open http://localhost:3000
 ```
 
-## 🌐 Web Dashboard
+</details>
 
-The workflow engine includes a modern React-based web dashboard that provides:
+## 🔧 Built-in Step Types
 
-### ✨ Dashboard Features
+<div align="center">
 
-- **Workflow Management**
-  - View all registered workflows in an organized grid layout
-  - Execute workflows with a single click
-  - Real-time execution status indicators
-  - Workflow metadata display (name, description, version)
+| Step Type | Description | Example Use Case |
+|:---:|:---|:---|
+| 🌐 **HTTP** | Make REST API calls | Fetch data, webhook notifications |
+| ⏰ **Wait** | Add delays between steps | Rate limiting, scheduled execution |
+| 📝 **Log** | Output messages and data | Debugging, progress tracking |
+| 🔀 **Conditional** | Branch execution logic | Dynamic workflow paths |
+| 📧 **Email** | Send notifications | Alerts, reports, confirmations |
+| 💻 **Script** | Execute JavaScript/TypeScript | Data transformation, custom logic |
 
-- **Visual Workflow Editor**
-  - YAML syntax-highlighted editor
-  - Built-in example templates to get started quickly
-  - Instant workflow creation and validation
-  - Clear and reset functionality for easy editing
+</div>
 
-- **Execution Monitoring**
-  - Real-time execution list with status tracking
-  - Detailed execution history and logs
-  - Success/failure indicators with error details
-  - Automatic refresh for live updates
+## 🌟 Advanced Features
 
-- **Modern UI/UX**
-  - Responsive design that works on desktop and mobile
-  - Clean, intuitive interface built with React and TypeScript
-  - Fast navigation with React Router
-  - Interactive notifications for user feedback
+### 🔄 Complex Workflow Example
 
-### 🚀 Accessing the Dashboard
+<details>
+<summary><strong>E-commerce Order Processing Pipeline</strong></summary>
 
-1. Start the dashboard server:
-```bash
-workflow-engine dashboard
+```yaml
+name: "E-commerce Order Processing"
+description: "Complete order fulfillment workflow"
+version: "2.0.0"
+
+variables:
+  order_id: "${input.orderId}"
+  customer_email: "${input.customerEmail}"
+
+steps:
+  - name: "validate-order"
+    type: "http"
+    params:
+      url: "https://api.shop.com/orders/${variables.order_id}"
+      method: "GET"
+      headers:
+        Authorization: "Bearer ${env.API_TOKEN}"
+
+  - name: "check-inventory"
+    type: "script"
+    params:
+      language: "typescript"
+      code: |
+        const order = context.steps['validate-order'].response.data;
+        const inventoryCheck = await checkInventory(order.items);
+        
+        if (!inventoryCheck.available) {
+          throw new Error(`Insufficient inventory for order ${order.id}`);
+        }
+        
+        return { status: 'available', items: order.items };
+
+  - name: "process-payment"
+    type: "http"
+    condition: "${steps.check-inventory.data.status} === 'available'"
+    params:
+      url: "https://payments.stripe.com/charges"
+      method: "POST"
+      body:
+        amount: "${steps.validate-order.data.total}"
+        currency: "usd"
+
+  - name: "send-confirmation"
+    type: "email"
+    params:
+      to: "${variables.customer_email}"
+      subject: "Order Confirmed - #${variables.order_id}"
+      template: "order-confirmation"
+      data:
+        order: "${steps.validate-order.data}"
+        payment: "${steps.process-payment.data}"
+
+  - name: "update-inventory"
+    type: "http"
+    params:
+      url: "https://api.shop.com/inventory/update"
+      method: "POST"
+      body: "${steps.check-inventory.data.items}"
 ```
 
-2. Open your browser and navigate to `http://localhost:3000`
+</details>
 
-3. The dashboard will automatically connect to the workflow engine backend
+### 🔌 Plugin System
 
-### 🎨 Technology Stack
+Create custom step executors for your specific needs:
 
-The frontend is built with modern web technologies:
-- **React 19** - Latest React with concurrent features
-- **TypeScript** - Full type safety and developer experience
-- **Vite** - Fast development server and optimized builds
-- **React Router** - Client-side routing for SPA experience
-- **Lucide React** - Beautiful, consistent icons
-- **Axios** - HTTP client for API communication
+<details>
+<summary><strong>Custom Step Example: Slack Notification</strong></summary>
+
+```typescript
+import { StepExecutor, ExecutionContext, StepResult } from 'workflow-engine';
+
+export class SlackStepExecutor implements StepExecutor {
+  type = 'slack';
+
+  async execute(params: any, context: ExecutionContext): Promise<StepResult> {
+    const { webhook_url, message, channel } = params;
+    
+    const response = await fetch(webhook_url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: message,
+        channel: channel || '#general'
+      })
+    });
+
+    return {
+      success: response.ok,
+      data: { message_sent: true, timestamp: new Date().toISOString() }
+    };
+  }
+}
+
+// Register the custom step
+engine.registerStepExecutor(new SlackStepExecutor());
+```
+
+</details>
+
+## 🌐 Web Dashboard Features
+
+### 🎨 Modern React Interface
+
+<div align="center">
+
+**Built with cutting-edge technologies for the best developer experience**
+
+[![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+
+</div>
+
+### ⚡ Key Dashboard Features
+
+- 🎛️ **Workflow Management** - Create, edit, delete, and organize workflows
+- ⚡ **One-Click Execution** - Run workflows instantly from the UI
+- 📊 **Real-time Monitoring** - Live execution status and progress tracking
+- 🔍 **Detailed Logging** - Step-by-step execution details and error messages
+- 🎨 **Syntax Highlighting** - Beautiful YAML editor with validation
+- 📱 **Responsive Design** - Works perfectly on desktop, tablet, and mobile
+- 🌙 **Dark Mode** - Easy on the eyes for long development sessions
+- 🔔 **Smart Notifications** - Instant feedback for all operations
 
 ## 🛠️ Development Setup
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+### 📋 Prerequisites
 
-### Getting Started
+- **Node.js** 18+ ([Download](https://nodejs.org/))
+- **npm** or **yarn**
+- **Git** for version control
 
-1. Clone the repository:
+### 🏃‍♂️ Quick Development Setup
+
 ```bash
-git clone https://github.com/your-username/workflow-engine
+# 1. Clone the repository
+git clone https://github.com/your-username/workflow-engine.git
 cd workflow-engine
-```
 
-2. Install all dependencies (backend + frontend):
-```bash
+# 2. Install all dependencies
 npm run install:all
+
+# 3. Start development servers
+npm run dev:all  # Starts both backend and frontend
+
+# Or start individually:
+npm run dev:backend    # Backend only (port 3000)
+npm run dev:frontend   # Frontend only (port 5173)
 ```
 
-3. Build everything:
-```bash
-npm run build:all
+### 🎯 Available Scripts
+
+<div align="center">
+
+| Command | Description | Environment |
+|:--------|:------------|:------------|
+| `npm run dev:all` | 🚀 Start full development environment | Development |
+| `npm run build:all` | 🏗️ Build backend + frontend for production | Production |
+| `npm run test` | 🧪 Run backend test suite | Testing |
+| `npm run lint:all` | 🔍 Lint both backend and frontend | Code Quality |
+
+</div>
+
+### 🔧 Project Structure
+
+```
+workflow-engine/
+├── 📁 backend/                 # Node.js/TypeScript backend
+│   ├── 📁 src/
+│   │   ├── 📁 engine/         # Core workflow execution engine
+│   │   ├── 📁 steps/          # Built-in step executors
+│   │   ├── 📁 storage/        # Database and persistence layer
+│   │   └── 📁 dashboard/      # REST API for web dashboard
+│   └── 📄 package.json
+│
+├── 📁 frontend/               # React/TypeScript dashboard
+│   ├── 📁 src/
+│   │   ├── 📁 components/     # React components
+│   │   ├── 📁 hooks/          # Custom React hooks
+│   │   ├── 📁 services/       # API client services
+│   │   └── 📁 contexts/       # React context providers
+│   └── 📄 package.json
+│
+├── 📁 examples/               # Example workflows
+│   ├── 📄 hello-world.yaml
+│   └── 📄 api-pipeline.yaml
+│
+└── 📄 README.md              # This awesome documentation!
 ```
 
-### Development Commands
+## 📚 Documentation
 
-```bash
-# Backend development
-npm run dev                 # Start backend in watch mode
-npm run build              # Build backend TypeScript
-npm run test               # Run backend tests
-npm run lint               # Lint backend code
+<div align="center">
 
-# Frontend development  
-npm run dev:frontend       # Start frontend dev server
-npm run build:frontend     # Build frontend for production
-npm run lint:frontend      # Lint frontend code
+| 📖 Guide | 🎯 Description |
+|:---------|:---------------|
+| **[Workflow Syntax](./docs/workflow-syntax.md)** | Complete YAML/JSON reference |
+| **[Built-in Steps](./docs/built-in-steps.md)** | All available step types and parameters |
+| **[Plugin Development](./docs/plugin-development.md)** | Create custom step executors |
+| **[API Reference](./docs/api-reference.md)** | REST API documentation |
+| **[Frontend Guide](./frontend/README.md)** | React dashboard development |
 
-# Unified commands
-npm run build:all          # Build both backend and frontend
-npm run lint:all           # Lint both backend and frontend
-npm run install:all        # Install dependencies for both projects
-```
+</div>
 
-### Development Workflow
+## 🤝 Contributing
 
-1. **Backend Development**: Run `npm run dev` to start the backend with hot reloading
-2. **Frontend Development**: Run `npm run dev:frontend` to start the Vite dev server
-3. **Full Stack**: Run both commands in separate terminals for full development experience
+We love contributions! Here's how you can help make the workflow engine even better:
 
-The frontend dev server (typically `http://localhost:5173`) will proxy API requests to the backend server.
+### 🌟 Ways to Contribute
 
-## 📖 Documentation
+- 🐛 **Bug Reports** - Found a bug? Let us know!
+- 💡 **Feature Requests** - Have an idea? We'd love to hear it!
+- 📝 **Documentation** - Help improve our docs
+- 🔧 **Code Contributions** - Submit pull requests
+- 🎨 **UI/UX Improvements** - Make the dashboard even more beautiful
 
-- [Workflow Syntax](./docs/workflow-syntax.md)
-- [Built-in Steps](./docs/built-in-steps.md)
-- [Plugin Development](./docs/plugin-development.md)
-- [API Reference](./docs/api-reference.md)
-- [Frontend Development](./frontend/README.md)
+### 🚀 Quick Contribution Guide
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### 📋 Development Guidelines
+
+- ✅ Write tests for new features
+- ✅ Follow TypeScript best practices
+- ✅ Update documentation
+- ✅ Use conventional commit messages
+
+## 📊 Roadmap
+
+<div align="center">
+
+### 🎯 Upcoming Features
+
+| Feature | Status | Priority | Release |
+|:--------|:-------|:---------|:--------|
+| 🔄 **Workflow Scheduling** | 🚧 In Progress | High | v2.1 |
+| 🐳 **Docker Support** | 📋 Planned | High | v2.2 |
+| ☁️ **Cloud Connectors** | 📋 Planned | Medium | v2.3 |
+| 🎨 **Visual Flow Builder** | 💭 Ideas | Medium | v3.0 |
+| 📱 **Mobile App** | 💭 Ideas | Low | v3.1 |
+
+</div>
+
+## ⭐ Show Your Support
+
+If this project helped you, please consider:
+
+- ⭐ **Starring** the repository
+- 🐛 **Reporting** bugs and issues
+- 💡 **Suggesting** new features
+- 📢 **Sharing** with your network
+
+<div align="center">
+
+**[⭐ Star this repository](https://github.com/your-username/workflow-engine)** • **[🐛 Report Bug](https://github.com/your-username/workflow-engine/issues)** • **[💡 Request Feature](https://github.com/your-username/workflow-engine/issues)**
+
+</div>
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+**Made with ❤️ by developers, for developers**
+
+*Happy automating! 🚀*
+
+</div>

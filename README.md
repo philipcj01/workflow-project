@@ -342,19 +342,6 @@ workflow-engine/
 └── 📄 README.md              # This awesome documentation!
 ```
 
-## 📚 Documentation
-
-<div align="center">
-
-| 📖 Guide | 🎯 Description |
-|:---------|:---------------|
-| **[Workflow Syntax](./docs/workflow-syntax.md)** | Complete YAML/JSON reference |
-| **[Built-in Steps](./docs/built-in-steps.md)** | All available step types and parameters |
-| **[Plugin Development](./docs/plugin-development.md)** | Create custom step executors |
-| **[API Reference](./docs/api-reference.md)** | REST API documentation |
-| **[Frontend Guide](./frontend/README.md)** | React dashboard development |
-
-</div>
 
 ## 🤝 Contributing
 
@@ -383,21 +370,6 @@ We love contributions! Here's how you can help make the workflow engine even bet
 - ✅ Update documentation
 - ✅ Use conventional commit messages
 
-## 📊 Roadmap
-
-<div align="center">
-
-### 🎯 Upcoming Features
-
-| Feature | Status | Priority | Release |
-|:--------|:-------|:---------|:--------|
-| 🔄 **Workflow Scheduling** | 🚧 In Progress | High | v2.1 |
-| 🐳 **Docker Support** | 📋 Planned | High | v2.2 |
-| ☁️ **Cloud Connectors** | 📋 Planned | Medium | v2.3 |
-| 🎨 **Visual Flow Builder** | 💭 Ideas | Medium | v3.0 |
-| 📱 **Mobile App** | 💭 Ideas | Low | v3.1 |
-
-</div>
 
 ## ⭐ Show Your Support
 

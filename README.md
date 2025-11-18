@@ -10,8 +10,6 @@
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 
-**[🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [💻 Demo](#-live-demo) • [🤝 Contributing](#-contributing)**
-
 ---
 
 *Define complex workflows in simple YAML/JSON • Execute with built-in steps and custom plugins • Monitor with a beautiful React dashboard*

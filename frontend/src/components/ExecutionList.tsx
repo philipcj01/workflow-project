@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Activity, Clock, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import type { ExecutionResult } from "../types";
 import { formatDate } from "../utils";
 
@@ -7,12 +7,14 @@ interface ExecutionListProps {
   executions: ExecutionResult[];
   loading: boolean;
   error: string | null;
+  onRetry?: () => void;
 }
 
 export const ExecutionList: React.FC<ExecutionListProps> = ({
   executions,
   loading,
   error,
+  onRetry,
 }) => {
   if (loading) {
     return (
@@ -24,7 +26,25 @@ export const ExecutionList: React.FC<ExecutionListProps> = ({
   }
 
   if (error) {
-    return <div className="error">Error: {error}</div>;
+    return (
+      <div className="error-display">
+        <div className="error-display-icon">
+          <XCircle size={24} />
+        </div>
+        <div className="error-display-content">
+          <h3>Failed to Load Executions</h3>
+          <p>{error}</p>
+          {onRetry && (
+            <div className="error-display-actions">
+              <button onClick={onRetry} className="retry-error-button">
+                <RefreshCw size={16} />
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (executions.length === 0) {

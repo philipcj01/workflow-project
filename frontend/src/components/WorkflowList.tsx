@@ -2,14 +2,19 @@ import React from "react";
 import { WorkflowCard } from "./WorkflowCard";
 import { ExecutionList } from "./ExecutionList";
 import { useWorkflows, useExecutions } from "../hooks/useWorkflows";
-import { showNotification } from "../utils";
+import { useNotifications } from "../contexts/NotificationContext";
+import { useNavigate } from "react-router-dom";
 
 export const WorkflowList: React.FC = () => {
+  const navigate = useNavigate();
+  const { showSuccess, showError } = useNotifications();
   const {
     workflows,
     loading: workflowLoading,
     error: workflowError,
     executeWorkflow,
+    deleteWorkflow,
+    refetch: refetchWorkflows,
   } = useWorkflows();
   const {
     executions,
@@ -21,17 +26,60 @@ export const WorkflowList: React.FC = () => {
   const handleExecuteWorkflow = async (workflowId: string) => {
     try {
       await executeWorkflow(workflowId);
-      showNotification("Workflow execution started successfully!");
+      showSuccess("Workflow execution started successfully!");
       // Refresh executions after starting a workflow
       setTimeout(() => refetchExecutions(), 1000);
-    } catch {
-      showNotification("Failed to execute workflow", "error");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to execute workflow";
+      showError(errorMessage, "Execution Failed");
+    }
+  };
+
+  const handleEditWorkflow = (workflowId: string) => {
+    // Navigate to edit page with workflow ID
+    navigate(`/edit/${workflowId}`);
+  };
+
+  const handleDeleteWorkflow = async (workflowId: string) => {
+    try {
+      await deleteWorkflow(workflowId);
+      showSuccess("Workflow deleted successfully!");
+    } catch (error) {
+      // Only show error if the workflow is still in the list (meaning deletion actually failed)
+      const stillExists = workflows.some((w) => w.id === workflowId);
+      if (stillExists) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to delete workflow";
+        showError(errorMessage, "Delete Failed");
+      } else {
+        // Deletion succeeded but there was an error refreshing the list
+        showSuccess("Workflow deleted successfully!");
+      }
     }
   };
 
   if (workflowError) {
     return (
-      <div className="error">Error loading workflows: {workflowError}</div>
+      <div className="error-display">
+        <div className="error-display-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L1 21h22L12 2zm-1 8v4h2v-4h-2zm0 6v2h2v-2h-2z" />
+          </svg>
+        </div>
+        <div className="error-display-content">
+          <h3>Failed to Load Workflows</h3>
+          <p>{workflowError}</p>
+          <div className="error-display-actions">
+            <button
+              onClick={() => refetchWorkflows()}
+              className="retry-error-button"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -50,6 +98,8 @@ export const WorkflowList: React.FC = () => {
               key={workflow.id}
               workflow={workflow}
               onExecute={handleExecuteWorkflow}
+              onEdit={handleEditWorkflow}
+              onDelete={handleDeleteWorkflow}
               isExecuting={workflowLoading}
             />
           ))}
@@ -66,6 +116,7 @@ export const WorkflowList: React.FC = () => {
         executions={executions}
         loading={executionLoading}
         error={executionError}
+        onRetry={refetchExecutions}
       />
     </div>
   );

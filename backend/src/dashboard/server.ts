@@ -4,6 +4,7 @@ import { WebSocketServer } from "ws";
 import chalk from "chalk";
 import * as path from "path";
 import { SqliteStorage } from "../storage/SqliteStorage";
+import { WorkflowStorage, StoredWorkflow } from "../storage/WorkflowStorage";
 import { WorkflowEngine } from "../engine/WorkflowEngine";
 import { WorkflowLoader } from "../loader/WorkflowLoader";
 import { ConsoleLogger } from "../utils/logger";
@@ -14,6 +15,7 @@ import { ScriptStepExecutor } from "../steps/ScriptStepExecutor";
 import { EmailStepExecutor } from "../steps/EmailStepExecutor";
 import { ConditionalStepExecutor } from "../steps/ConditionalStepExecutor";
 import * as fs from "fs/promises";
+import { v4 as uuidv4 } from "uuid";
 
 export async function startDashboard(
   port: number,
@@ -26,10 +28,16 @@ export async function startDashboard(
   // CORS middleware for React frontend
   app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-    
-    if (req.method === 'OPTIONS') {
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    );
+
+    if (req.method === "OPTIONS") {
       res.sendStatus(200);
     } else {
       next();
@@ -40,6 +48,7 @@ export async function startDashboard(
   app.use(express.static(path.join(__dirname, "public")));
 
   const storage = new SqliteStorage(dbPath);
+  const workflowStorage = new WorkflowStorage(dbPath);
   const logger = new ConsoleLogger(false);
   const engine = new WorkflowEngine(storage, logger);
 
@@ -50,6 +59,9 @@ export async function startDashboard(
   engine.registerStepExecutor(new ScriptStepExecutor());
   engine.registerStepExecutor(new EmailStepExecutor());
   engine.registerStepExecutor(new ConditionalStepExecutor());
+
+  // Initialize workflows from examples folder on first startup
+  await initializeWorkflowsFromExamples(workflowStorage);
 
   // WebSocket connections for real-time updates
   const clients = new Set<any>();
@@ -70,37 +82,48 @@ export async function startDashboard(
   }
 
   // REST API Routes for React Frontend
-  
+
   // Get all workflows
   app.get("/api/workflows", async (req, res) => {
     try {
-      // Load workflows from example files
-      const exampleDir = path.resolve(process.cwd(), "examples");
-      const workflows = [];
-      
-      try {
-        const files = await fs.readdir(exampleDir);
-        const yamlFiles = files.filter(file => file.endsWith('.yaml') || file.endsWith('.yml'));
-        
-        for (const file of yamlFiles) {
-          try {
-            const workflow = await WorkflowLoader.loadFromFile(path.join(exampleDir, file));
-            workflows.push({
-              id: path.basename(file, path.extname(file)),
-              name: workflow.name,
-              description: workflow.description,
-              version: workflow.version,
-              filePath: path.join(exampleDir, file)
-            });
-          } catch (error) {
-            logger.warn(`Failed to load workflow from ${file}:`, error);
-          }
-        }
-      } catch (error) {
-        logger.warn("Failed to load example workflows:", error);
-      }
-      
+      const storedWorkflows = await workflowStorage.listWorkflows();
+
+      const workflows = storedWorkflows.map((stored) => ({
+        id: stored.id,
+        name: stored.name,
+        description: stored.description || "No description available",
+        version: stored.version,
+        status: "active",
+      }));
+
       res.json(workflows);
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Get a specific workflow
+  app.get("/api/workflows/:id", async (req, res) => {
+    try {
+      const workflowId = req.params.id;
+      const storedWorkflow = await workflowStorage.getWorkflow(workflowId);
+
+      if (!storedWorkflow) {
+        return res.status(404).json({ error: "Workflow not found" });
+      }
+
+      res.json({
+        id: storedWorkflow.id,
+        name: storedWorkflow.name,
+        description: storedWorkflow.description,
+        version: storedWorkflow.version,
+        content: storedWorkflow.content,
+        format: storedWorkflow.format,
+        created_at: storedWorkflow.created_at,
+        updated_at: storedWorkflow.updated_at,
+      });
     } catch (error) {
       res.status(500).json({
         error: error instanceof Error ? error.message : String(error),
@@ -113,17 +136,18 @@ export async function startDashboard(
     try {
       const workflowId = req.params.id;
       const { variables = {} } = req.body;
-      
-      // Load workflow from examples
-      const exampleDir = path.resolve(process.cwd(), "examples");
-      const workflowFile = path.join(exampleDir, `${workflowId}.yaml`);
-      
-      let workflow;
-      try {
-        workflow = await WorkflowLoader.loadFromFile(workflowFile);
-      } catch (error) {
+
+      const storedWorkflow = await workflowStorage.getWorkflow(workflowId);
+
+      if (!storedWorkflow) {
         return res.status(404).json({ error: "Workflow not found" });
       }
+
+      // Parse the stored workflow content
+      const workflow = await WorkflowLoader.loadFromString(
+        storedWorkflow.content,
+        storedWorkflow.format
+      );
 
       // Execute workflow
       const run = await engine.execute(workflow, variables);
@@ -140,12 +164,12 @@ export async function startDashboard(
         steps: Object.entries(run.steps).map(([name, step]) => ({
           id: name,
           name: name,
-          type: 'unknown', // We don't have step type in the result
-          status: step.success ? 'completed' : 'failed',
+          type: "unknown", // We don't have step type in the result
+          status: step.success ? "completed" : "failed",
           startTime: step.timestamp.toISOString(),
           endTime: step.timestamp.toISOString(),
-          output: step.data
-        }))
+          output: step.data,
+        })),
       });
     } catch (error) {
       res.status(500).json({
@@ -165,24 +189,94 @@ export async function startDashboard(
 
       // Parse and validate workflow
       const workflow = await WorkflowLoader.loadFromString(yaml, "yaml");
-      
-      // Generate filename from workflow name
-      const filename = workflow.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.yaml';
-      const exampleDir = path.resolve(process.cwd(), "examples");
-      const filePath = path.join(exampleDir, filename);
-      
-      // Save workflow to examples directory
-      await WorkflowLoader.saveToFile(workflow, filePath);
 
-      res.json({
-        id: path.basename(filename, '.yaml'),
+      // Generate unique ID
+      const workflowId = uuidv4();
+
+      // Store workflow in database
+      const storedWorkflow: StoredWorkflow = {
+        id: workflowId,
         name: workflow.name,
         description: workflow.description,
         version: workflow.version,
-        filePath: filePath
+        content: yaml,
+        format: "yaml",
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      await workflowStorage.saveWorkflow(storedWorkflow);
+
+      res.json({
+        id: workflowId,
+        name: workflow.name,
+        description: workflow.description,
+        version: workflow.version,
+        status: "active",
       });
     } catch (error) {
       res.status(400).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Update a workflow
+  app.put("/api/workflows/:id", async (req, res) => {
+    try {
+      const workflowId = req.params.id;
+      const { yaml } = req.body;
+
+      if (!yaml) {
+        return res.status(400).json({ error: "YAML content is required" });
+      }
+
+      // Check if workflow exists
+      const existingWorkflow = await workflowStorage.getWorkflow(workflowId);
+      if (!existingWorkflow) {
+        return res.status(404).json({ error: "Workflow not found" });
+      }
+
+      // Parse and validate new workflow content
+      const workflow = await WorkflowLoader.loadFromString(yaml, "yaml");
+
+      // Update workflow in database
+      await workflowStorage.updateWorkflow(workflowId, {
+        name: workflow.name,
+        description: workflow.description,
+        version: workflow.version,
+        content: yaml,
+        format: "yaml",
+      });
+
+      res.json({
+        id: workflowId,
+        name: workflow.name,
+        description: workflow.description,
+        version: workflow.version,
+        status: "active",
+      });
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Delete a workflow
+  app.delete("/api/workflows/:id", async (req, res) => {
+    try {
+      const workflowId = req.params.id;
+
+      const deleted = await workflowStorage.deleteWorkflow(workflowId);
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Workflow not found" });
+      }
+
+      res.json({ message: "Workflow deleted successfully" });
+    } catch (error) {
+      res.status(500).json({
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -193,8 +287,8 @@ export async function startDashboard(
     try {
       const workflowName = req.query.workflow as string;
       const runs = await storage.listRuns(workflowName);
-      
-      const executions = runs.map(run => ({
+
+      const executions = runs.map((run) => ({
         id: run.id,
         workflow: run.workflowName,
         status: run.status,
@@ -203,14 +297,14 @@ export async function startDashboard(
         steps: Object.entries(run.steps).map(([name, step]) => ({
           id: name,
           name: name,
-          type: 'unknown',
-          status: step.success ? 'completed' : 'failed',
+          type: "unknown",
+          status: step.success ? "completed" : "failed",
           startTime: step.timestamp.toISOString(),
           endTime: step.timestamp.toISOString(),
-          output: step.data
-        }))
+          output: step.data,
+        })),
       }));
-      
+
       res.json(executions);
     } catch (error) {
       res.status(500).json({
@@ -226,11 +320,9 @@ export async function startDashboard(
       const runs = await storage.listRuns(workflowName);
       res.json(runs);
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          error: error instanceof Error ? error.message : String(error),
-        });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -242,11 +334,9 @@ export async function startDashboard(
       }
       res.json(run);
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          error: error instanceof Error ? error.message : String(error),
-        });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -274,11 +364,9 @@ export async function startDashboard(
 
       res.json(run);
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          error: error instanceof Error ? error.message : String(error),
-        });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -288,11 +376,9 @@ export async function startDashboard(
       const validation = WorkflowLoader.validateWorkflow(workflow);
       res.json(validation);
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          error: error instanceof Error ? error.message : String(error),
-        });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -307,6 +393,75 @@ export async function startDashboard(
     );
     console.log(chalk.gray(`Database: ${dbPath}`));
   });
+}
+
+// Initialize workflows from examples folder on first startup
+async function initializeWorkflowsFromExamples(
+  workflowStorage: WorkflowStorage
+): Promise<void> {
+  try {
+    // Check if we already have workflows in storage
+    const existingWorkflows = await workflowStorage.listWorkflows();
+    if (existingWorkflows.length > 0) {
+      return; // Already initialized
+    }
+
+    // Load example workflows from the examples directory
+    const exampleDir = path.resolve(process.cwd(), "examples");
+
+    try {
+      const files = await fs.readdir(exampleDir);
+      const yamlFiles = files.filter(
+        (file) => file.endsWith(".yaml") || file.endsWith(".yml")
+      );
+
+      for (const file of yamlFiles) {
+        try {
+          const filePath = path.join(exampleDir, file);
+          const content = await fs.readFile(filePath, "utf8");
+          const workflow = await WorkflowLoader.loadFromFile(filePath);
+
+          // Generate ID from filename
+          const workflowId = path.basename(file, path.extname(file));
+
+          const storedWorkflow: StoredWorkflow = {
+            id: workflowId,
+            name: workflow.name,
+            description: workflow.description,
+            version: workflow.version,
+            content: content,
+            format: "yaml",
+            created_at: new Date(),
+            updated_at: new Date(),
+          };
+
+          await workflowStorage.saveWorkflow(storedWorkflow);
+          console.log(
+            chalk.green(`📝 Imported example workflow: ${workflow.name}`)
+          );
+        } catch (error) {
+          console.warn(
+            chalk.yellow(
+              `⚠️  Failed to import ${file}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            )
+          );
+        }
+      }
+    } catch (error) {
+      console.log(
+        chalk.gray(
+          "No examples directory found, skipping initial workflow import"
+        )
+      );
+    }
+  } catch (error) {
+    console.error(
+      chalk.red("Failed to initialize workflows from examples:"),
+      error
+    );
+  }
 }
 
 function getDashboardHTML(): string {

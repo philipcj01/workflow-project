@@ -1,20 +1,46 @@
-import React from "react";
-import { Play, Workflow as Workflow2, Clock, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Play,
+  Workflow as Workflow2,
+  Clock,
+  Sparkles,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import type { Workflow } from "../types";
+import { ConfirmationModal } from "./ConfirmationModal";
 
 interface WorkflowCardProps {
   workflow: Workflow;
   onExecute: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
   isExecuting: boolean;
 }
 
 export const WorkflowCard: React.FC<WorkflowCardProps> = ({
   workflow,
   onExecute,
+  onEdit,
+  onDelete,
   isExecuting,
 }) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const handleExecute = () => {
     onExecute(workflow.id);
+  };
+
+  const handleEdit = () => {
+    onEdit(workflow.id);
+  };
+
+  const handleDelete = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onDelete(workflow.id);
   };
 
   // Get a workflow icon based on workflow type or name
@@ -39,14 +65,46 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
       <div className="workflow-meta">
         <span>v{workflow.version}</span>
       </div>
-      <button
-        onClick={handleExecute}
-        disabled={isExecuting}
-        className="run-button"
-      >
-        <Play size={16} />
-        {isExecuting ? "Running..." : "Run Workflow"}
-      </button>
+
+      <div className="workflow-actions">
+        <button
+          onClick={handleExecute}
+          disabled={isExecuting}
+          className="run-button"
+        >
+          <Play size={16} />
+          {isExecuting ? "Running..." : "Run"}
+        </button>
+
+        <button
+          onClick={handleEdit}
+          className="edit-button"
+          title="Edit workflow"
+        >
+          <Edit size={16} />
+          Edit
+        </button>
+
+        <button
+          onClick={handleDelete}
+          className="delete-button"
+          title="Delete workflow"
+        >
+          <Trash2 size={16} />
+          Delete
+        </button>
+      </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Workflow"
+        message={`Are you sure you want to delete "${workflow.name}"? This action cannot be undone.`}
+        confirmText="Delete Workflow"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

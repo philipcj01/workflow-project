@@ -17,11 +17,16 @@ export const getStatusColor = (
   }
 };
 
+// Deprecated: Use useNotifications hook from NotificationContext instead
 export const showNotification = (
   message: string,
   type: "success" | "error" = "success"
 ) => {
-  // Simple notification - can be enhanced with a proper toast library later
+  console.warn(
+    "showNotification is deprecated. Use useNotifications hook instead."
+  );
+
+  // Fallback for any remaining usage
   if (type === "success") {
     alert(`✅ ${message}`);
   } else {

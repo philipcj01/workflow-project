@@ -56,6 +56,70 @@ export const useWorkflows = () => {
     [loadWorkflows]
   );
 
+  const updateWorkflow = useCallback(
+    async (id: string, yaml: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await workflowService.updateWorkflow(id, { yaml });
+        await loadWorkflows(); // Refresh the list
+        return result;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to update workflow"
+        );
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadWorkflows]
+  );
+
+  const deleteWorkflow = useCallback(
+    async (id: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await workflowService.deleteWorkflow(id);
+        try {
+          await loadWorkflows(); // Refresh the list
+        } catch (refreshError) {
+          // If deletion succeeded but refresh failed, don't throw
+          // The deletion was successful, just log silently for debugging
+          if (process.env.NODE_ENV === "development") {
+            console.debug(
+              "Workflow deleted successfully but failed to refresh list:",
+              refreshError
+            );
+          }
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to delete workflow"
+        );
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadWorkflows]
+  );
+
+  const getWorkflow = useCallback(async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await workflowService.getWorkflow(id);
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load workflow");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadWorkflows();
   }, [loadWorkflows]);
@@ -66,6 +130,9 @@ export const useWorkflows = () => {
     error,
     executeWorkflow,
     createWorkflow,
+    updateWorkflow,
+    deleteWorkflow,
+    getWorkflow,
     refetch: loadWorkflows,
   };
 };

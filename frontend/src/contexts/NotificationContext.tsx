@@ -1,10 +1,5 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  ReactNode,
-} from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
+import type { ReactNode } from "react";
 import { CheckCircle, AlertTriangle, XCircle, X } from "lucide-react";
 
 export type NotificationType = "success" | "error" | "warning" | "info";

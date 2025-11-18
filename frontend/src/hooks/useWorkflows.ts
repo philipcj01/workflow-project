@@ -21,7 +21,6 @@ export const useWorkflows = () => {
   }, []);
 
   const executeWorkflow = useCallback(async (workflowId: string) => {
-    setLoading(true);
     setError(null);
     try {
       const result = await workflowService.executeWorkflow(workflowId);
@@ -31,8 +30,6 @@ export const useWorkflows = () => {
         err instanceof Error ? err.message : "Failed to execute workflow"
       );
       throw err;
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -78,41 +75,50 @@ export const useWorkflows = () => {
 
   const deleteWorkflow = useCallback(
     async (id: string) => {
-      setLoading(true);
       setError(null);
       try {
+        // First, try to delete the workflow
         await workflowService.deleteWorkflow(id);
 
         // Immediately update local state to remove the deleted workflow
+        // This ensures the UI updates even if the refresh fails
         setWorkflows((prev) => prev.filter((w) => w.id !== id));
 
-        // Try to refresh from server, but don't fail if it doesn't work
-        try {
-          await loadWorkflows();
-        } catch (refreshError) {
-          // Log refresh error in development but don't propagate it
-          if (import.meta.env.DEV) {
-            console.debug(
-              "Workflow deleted successfully but failed to refresh list:",
-              refreshError
-            );
+        // Try to refresh from server, but don't let refresh errors interfere
+        // with the successful deletion
+        setTimeout(async () => {
+          try {
+            await loadWorkflows();
+          } catch (refreshError) {
+            // Log refresh error in development but don't show it to user
+            // since the deletion was successful
+            if (import.meta.env.DEV) {
+              console.debug(
+                "Workflow deleted successfully but failed to refresh list:",
+                refreshError
+              );
+            }
+            // Don't set error state for refresh failures after successful deletion
           }
-          // Clear any error state that might have been set by loadWorkflows
-          setError(null);
-        }
+        }, 100);
       } catch (err) {
-        // More specific error handling for deletion
+        // Handle deletion errors specifically
         let errorMessage = "Failed to delete workflow";
 
         if (err instanceof Error) {
-          if (err.message.includes("not found")) {
-            errorMessage =
-              "Workflow not found - it may have already been deleted";
-            // Remove from local state anyway since it doesn't exist
+          if (
+            err.message.includes("not found") ||
+            err.message.includes("404")
+          ) {
+            // If workflow is not found, it may have already been deleted
+            // Remove it from local state and don't treat this as an error
             setWorkflows((prev) => prev.filter((w) => w.id !== id));
+            // Don't set an error message for this case - just silently succeed
+            return;
           } else if (
             err.message.includes("Network error") ||
-            err.message.includes("Unable to connect")
+            err.message.includes("Unable to connect") ||
+            err.message.includes("fetch")
           ) {
             errorMessage =
               "Unable to connect to server. Please check if the backend is running.";
@@ -123,8 +129,6 @@ export const useWorkflows = () => {
 
         setError(errorMessage);
         throw new Error(errorMessage);
-      } finally {
-        setLoading(false);
       }
     },
     [loadWorkflows]
@@ -181,6 +185,22 @@ export const useExecutions = () => {
     }
   }, []);
 
+  const clearExecutions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await executionService.clearExecutions();
+      setExecutions([]);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to clear executions"
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadExecutions();
   }, [loadExecutions]);
@@ -190,5 +210,6 @@ export const useExecutions = () => {
     loading,
     error,
     refetch: loadExecutions,
+    clearExecutions,
   };
 };

@@ -21,18 +21,29 @@ export const WorkflowList: React.FC = () => {
     loading: executionLoading,
     error: executionError,
     refetch: refetchExecutions,
+    clearExecutions,
   } = useExecutions();
 
-  const handleExecuteWorkflow = async (workflowId: string) => {
+  const handleExecuteWorkflow = async (
+    workflowId: string
+  ): Promise<{ id: string; workflow: string }> => {
     try {
-      await executeWorkflow(workflowId);
+      const result = await executeWorkflow(workflowId);
       showSuccess("Workflow execution started successfully!");
+
       // Refresh executions after starting a workflow
       setTimeout(() => refetchExecutions(), 1000);
+
+      // Return execution details for real-time tracking
+      return {
+        id: result.id,
+        workflow: result.workflow || "Unknown Workflow",
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to execute workflow";
       showError(errorMessage, "Execution Failed");
+      throw error; // Re-throw so the component can handle it
     }
   };
 
@@ -52,29 +63,16 @@ export const WorkflowList: React.FC = () => {
     }
   };
 
-  if (workflowError) {
-    return (
-      <div className="error-display">
-        <div className="error-display-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L1 21h22L12 2zm-1 8v4h2v-4h-2zm0 6v2h2v-2h-2z" />
-          </svg>
-        </div>
-        <div className="error-display-content">
-          <h3>Failed to Load Workflows</h3>
-          <p>{workflowError}</p>
-          <div className="error-display-actions">
-            <button
-              onClick={() => refetchWorkflows()}
-              className="retry-error-button"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleClearExecutions = async () => {
+    try {
+      await clearExecutions();
+      showSuccess("Execution history cleared successfully!");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to clear executions";
+      showError(errorMessage, "Clear Failed");
+    }
+  };
 
   return (
     <div className="workflow-dashboard">
@@ -83,6 +81,26 @@ export const WorkflowList: React.FC = () => {
         <div className="loading">
           <div className="loading-spinner"></div>
           Loading workflows...
+        </div>
+      ) : workflowError ? (
+        <div className="error-display">
+          <div className="error-display-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L1 21h22L12 2zm-1 8v4h2v-4h-2zm0 6v2h2v-2h-2z" />
+            </svg>
+          </div>
+          <div className="error-display-content">
+            <h3>Failed to Load Workflows</h3>
+            <p>{workflowError}</p>
+            <div className="error-display-actions">
+              <button
+                onClick={() => refetchWorkflows()}
+                className="retry-error-button"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="workflow-grid">
@@ -93,7 +111,6 @@ export const WorkflowList: React.FC = () => {
               onExecute={handleExecuteWorkflow}
               onEdit={handleEditWorkflow}
               onDelete={handleDeleteWorkflow}
-              isExecuting={workflowLoading}
             />
           ))}
           {workflows.length === 0 && (
@@ -110,6 +127,7 @@ export const WorkflowList: React.FC = () => {
         loading={executionLoading}
         error={executionError}
         onRetry={refetchExecutions}
+        onClear={handleClearExecutions}
       />
     </div>
   );

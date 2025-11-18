@@ -43,14 +43,6 @@
 </tr>
 </table>
 
-## 🎬 Live Demo
-
-> **Note:** Add screenshots or GIFs of your dashboard here
-
-| Dashboard Overview | Workflow Editor | Execution Monitoring |
-|:--:|:--:|:--:|
-| ![Dashboard](https://via.placeholder.com/300x200?text=Dashboard+Screenshot) | ![Editor](https://via.placeholder.com/300x200?text=Editor+Screenshot) | ![Monitoring](https://via.placeholder.com/300x200?text=Monitoring+Screenshot) |
-| *Manage all workflows in one place* | *Visual YAML editor with validation* | *Real-time execution tracking* |
 
 ## 🚀 Quick Start
 

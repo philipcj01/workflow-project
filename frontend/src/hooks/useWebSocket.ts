@@ -15,7 +15,7 @@ export interface WorkflowEvent {
 }
 
 export interface WebSocketMessage {
-  type: "workflow_event" | "connection_established" | "run_update";
+  type: "workflow_event" | "connection_established" | "run_update" | "pong";
   event?: WorkflowEvent;
   run?: any;
   timestamp?: string;
@@ -25,6 +25,7 @@ export const useWebSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
   const ws = useRef<WebSocket | null>(null);
+  const pingInterval = useRef<number | null>(null);
   const eventCallbacks = useRef<Map<string, (event: WorkflowEvent) => void>>(
     new Map()
   );
@@ -44,6 +45,13 @@ export const useWebSocket = () => {
     ws.current.onopen = () => {
       console.log("WebSocket connected to:", wsUrl);
       setIsConnected(true);
+
+      // Start keepalive ping every 25 seconds
+      pingInterval.current = window.setInterval(() => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          ws.current.send(JSON.stringify({ type: "ping" }));
+        }
+      }, 25000);
     };
 
     ws.current.onclose = (event) => {
@@ -54,6 +62,13 @@ export const useWebSocket = () => {
         event.reason
       );
       setIsConnected(false);
+
+      // Clear ping interval
+      if (pingInterval.current) {
+        window.clearInterval(pingInterval.current);
+        pingInterval.current = null;
+      }
+
       // Attempt to reconnect after 3 seconds
       setTimeout(connect, 3000);
     };
@@ -66,6 +81,13 @@ export const useWebSocket = () => {
     ws.current.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
+
+        // Handle pong response (keepalive)
+        if (message.type === "pong") {
+          // Just log for debugging, no action needed
+          console.debug("Received pong from server");
+          return;
+        }
 
         if (message.type === "workflow_event" && message.event) {
           setEvents((prev) => [...prev, message.event!]);
@@ -82,6 +104,12 @@ export const useWebSocket = () => {
   }, []);
 
   const disconnect = useCallback(() => {
+    // Clear ping interval
+    if (pingInterval.current) {
+      window.clearInterval(pingInterval.current);
+      pingInterval.current = null;
+    }
+
     if (ws.current) {
       ws.current.close();
       ws.current = null;

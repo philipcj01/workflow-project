@@ -1,0 +1,84 @@
+name: "Parallel API Processing"
+description: "Demonstrates parallel for-each execution for faster processing"
+version: "1.0.0"
+
+variables:
+  base_urls:
+    - "https://httpbin.org/delay/1"
+    - "https://httpbin.org/delay/2" 
+    - "https://httpbin.org/delay/1"
+    - "https://httpbin.org/delay/3"
+    - "https://httpbin.org/delay/2"
+
+steps:
+  - name: "sequential_processing"
+    type: "foreach"
+    params:
+      items: "${variables.base_urls}"
+      itemVariable: "url"
+      indexVariable: "index"
+      parallel: false
+      steps:
+        - name: "make_request"
+          type: "http"
+          params:
+            url: "${variables.url}"
+            method: "GET"
+            timeout: 10000
+          retries: 1
+
+        - name: "log_response"
+          type: "log"
+          params:
+            message: "Sequential: Request ${variables.index + 1} completed to ${variables.url}"
+            level: "info"
+
+  - name: "parallel_processing"
+    type: "foreach"
+    params:
+      items: "${variables.base_urls}"
+      itemVariable: "url"
+      indexVariable: "index"
+      parallel: true
+      maxConcurrency: 3
+      steps:
+        - name: "make_request"
+          type: "http"
+          params:
+            url: "${variables.url}"
+            method: "GET"
+            timeout: 10000
+          retries: 1
+
+        - name: "log_response"
+          type: "log"
+          params:
+            message: "Parallel: Request ${variables.index + 1} completed to ${variables.url}"
+            level: "info"
+
+  - name: "compare_performance"
+    type: "script"
+    params:
+      language: "javascript"
+      code: |
+        const sequentialResults = context.steps.sequential_processing.data;
+        const parallelResults = context.steps.parallel_processing.data;
+        
+        console.log('📈 Performance Comparison:');
+        console.log(`Sequential: ${sequentialResults.totalItems} requests processed`);
+        console.log(`Parallel: ${parallelResults.totalItems} requests processed`);
+        console.log(`Sequential Success Rate: ${(sequentialResults.successCount / sequentialResults.totalItems * 100).toFixed(1)}%`);
+        console.log(`Parallel Success Rate: ${(parallelResults.successCount / parallelResults.totalItems * 100).toFixed(1)}%`);
+        
+        return {
+          sequential: {
+            totalItems: sequentialResults.totalItems,
+            successCount: sequentialResults.successCount,
+            errorCount: sequentialResults.errorCount
+          },
+          parallel: {
+            totalItems: parallelResults.totalItems,
+            successCount: parallelResults.successCount,
+            errorCount: parallelResults.errorCount
+          }
+        };

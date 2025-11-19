@@ -75,6 +75,22 @@ export async function startDashboard(
       JSON.stringify({ type: "connection_established", timestamp: new Date() })
     );
 
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        // Handle ping message for keepalive
+        if (message.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", timestamp: new Date() }));
+          return;
+        }
+
+        // Handle other message types here if needed
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    });
+
     ws.on("close", () => {
       clients.delete(ws);
       console.log(

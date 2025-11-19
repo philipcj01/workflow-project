@@ -141,9 +141,11 @@
 
 /* Execution Log Styles */
 .execution-log {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-xl);
   min-height: 400px;
   max-height: 500px;
   overflow: hidden;
@@ -158,11 +160,11 @@
 
 .execution-log-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f9fafb;
+  background: var(--bg-hover);
 }
 
 .execution-log-title {
@@ -175,13 +177,13 @@
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .execution-log-title p {
   margin: 0;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .execution-log-actions {
@@ -195,18 +197,18 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .connection-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--accent-error);
 }
 
 .connection-indicator.connected {
-  background: #10b981;
+  background: var(--accent-success);
   animation: pulse 2s infinite;
 }
 
@@ -214,20 +216,20 @@
   background: none;
   border: none;
   padding: 0.25rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-secondary);
   transition: all 0.2s;
 }
 
 .close-button:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 
 .execution-log-progress {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .progress-info {
@@ -236,43 +238,47 @@
   align-items: center;
   margin-bottom: 0.75rem;
   font-size: 0.875rem;
+  color: var(--text-primary);
 }
 
 .status-badge {
   padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .status-badge.running {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--accent-primary);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .status-badge.completed {
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .status-badge.failed {
-  background: #fecaca;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--accent-error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .progress-bar {
   width: 100%;
   height: 8px;
-  background: #f3f4f6;
-  border-radius: 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
@@ -287,7 +293,7 @@
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .timeline-event:last-child {
@@ -297,20 +303,20 @@
 
 .timeline-event.workflow-start,
 .timeline-event.workflow-end {
-  background: #f8fafc;
+  background: var(--bg-hover);
   padding: 1rem;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
 }
 
 .timeline-event.workflow-end.failed {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .timeline-event.workflow-end.completed {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .step-details {
@@ -326,21 +332,22 @@
 
 .step-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .step-type {
   padding: 0.125rem 0.5rem;
-  background: #f3f4f6;
-  color: #6b7280;
-  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
+  border: 1px solid var(--border-primary);
 }
 
 .step-status {
   padding: 0.125rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -348,17 +355,17 @@
 
 .step-timing {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
 }
 
 .step-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
   padding: 0.75rem;
   font-size: 0.875rem;
-  color: #dc2626;
+  color: var(--accent-error);
   margin-top: 0.5rem;
 }
 
@@ -370,27 +377,29 @@
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-primary);
   padding: 0.5rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
 }
 
 .step-output summary:hover {
-  background: #f3f4f6;
+  background: var(--bg-card);
 }
 
 .step-output pre {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
   padding: 0.75rem;
   margin-top: 0.5rem;
   overflow-x: auto;
   font-size: 0.875rem;
   max-height: 200px;
   overflow-y: auto;
+  color: var(--text-primary);
+  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
 }
 
 .step-event.pending {
@@ -398,17 +407,17 @@
 }
 
 .step-event.running {
-  background: #eff6ff;
-  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: var(--radius-md);
   padding: 0.75rem;
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid var(--accent-primary);
 }
 
 .step-event.failed {
-  background: #fef2f2;
-  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-md);
   padding: 0.75rem;
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid var(--accent-error);
 }
 
 .step-event.completed {
@@ -417,15 +426,15 @@
 
 .step-event.skipped {
   opacity: 0.7;
-  background: #fffbeb;
-  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: var(--radius-md);
   padding: 0.75rem;
-  border-left: 4px solid #f59e0b;
+  border-left: 4px solid var(--accent-warning);
 }
 
 /* Live execution indicator animation */
 .execution-log[data-status="running"] .execution-log-header {
-  background: linear-gradient(90deg, #f9fafb 0%, #eff6ff 50%, #f9fafb 100%);
+  background: linear-gradient(90deg, var(--bg-hover) 0%, rgba(59, 130, 246, 0.1) 50%, var(--bg-hover) 100%);
   background-size: 200% 100%;
   animation: shimmer 3s ease-in-out infinite;
 }

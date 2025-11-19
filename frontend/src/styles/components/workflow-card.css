@@ -9,7 +9,7 @@
   position: relative;
   overflow: hidden;
   animation: slideIn 0.6s ease-out;
-  min-height: 400px;
+  min-height: 200px;
   max-height: 500px;
   display: flex;
   flex-direction: column;

@@ -310,21 +310,226 @@
 /* Editor Mode Toggle Styles */
 .editor-mode-toggle {
   display: flex;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: 0.25rem;
-  gap: 0.25rem;
+  position: relative;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.editor-mode-toggle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  border-radius: var(--radius-md);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  opacity: 0.15;
+  z-index: 0;
+}
+
+.editor-mode-toggle[data-active="visual"]::before {
+  transform: translateX(100%);
+}
+
+.editor-mode-toggle[data-active="yaml"]::before {
+  transform: translateX(0%);
 }
 
 .mode-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
   background: transparent;
   color: var(--text-secondary);
   border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.8rem;
+  position: relative;
+  z-index: 1;
+  min-width: 70px;
+  justify-content: center;
+}
+
+.mode-btn:hover:not(:disabled):not(.active) {
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mode-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Workflow Editor Styles */
+.workflow-editor {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-primary);
+  backdrop-filter: blur(20px);
+}
+
+.editor-header h2 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  overflow: hidden;
+  min-height: 0; /* Allow flex shrinking */
+}
+
+.editor-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-lg);
+  min-height: 600px; /* Minimum height for the editor box */
+  height: calc(100vh - 200px); /* Dynamic height based on viewport */
+}
+
+.editor-box-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.editor-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+.editor-view.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.yaml-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.yaml-editor {
+  flex: 1;
+  width: 100%;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: none;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  tab-size: 2;
+}
+
+.yaml-editor::placeholder {
+  color: var(--text-secondary);
+}
+
+.visual-view {
+  height: 100%;
+}
+
+.save-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  align-self: center;
+}
+
+.save-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cancel-button,
+.example-button,
+.reset-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   font-weight: 500;
   cursor: pointer;
@@ -332,20 +537,33 @@
   font-size: 0.875rem;
 }
 
-.mode-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+.cancel-button:hover,
+.example-button:hover,
+.reset-button:hover {
+  background: var(--bg-card);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
-.mode-btn.active {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-  color: white;
-  box-shadow: var(--shadow-sm);
-}
-
-.mode-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Responsive Design */
+@media (max-width: 768px) {
+  .editor-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .editor-actions {
+    justify-content: center;
+  }
+  
+  .editor-container {
+    padding: 1rem;
+  }
+  
+  .editor-box-header {
+    justify-content: center;
+  }
 }
 
 /* Responsive Design for Visual Builder */

@@ -12,6 +12,7 @@ import { WaitStepExecutor } from "../steps/WaitStepExecutor";
 import { LogStepExecutor } from "../steps/LogStepExecutor";
 import { ScriptStepExecutor } from "../steps/ScriptStepExecutor";
 import { EmailStepExecutor } from "../steps/EmailStepExecutor";
+import { ForEachStepExecutor } from "../steps/ForEachStepExecutor";
 import { startDashboard } from "../dashboard/server";
 
 const program = new Command();
@@ -40,6 +41,7 @@ program
       engine.registerStepExecutor(new LogStepExecutor());
       engine.registerStepExecutor(new ScriptStepExecutor());
       engine.registerStepExecutor(new EmailStepExecutor());
+      engine.registerStepExecutor(new ForEachStepExecutor());
 
       logger.info(chalk.cyan("Loading workflow..."));
       const workflow = await WorkflowLoader.loadFromFile(path.resolve(file));

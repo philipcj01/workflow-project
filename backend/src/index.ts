@@ -17,6 +17,7 @@ export { LogStepExecutor } from "./steps/LogStepExecutor";
 export { ScriptStepExecutor } from "./steps/ScriptStepExecutor";
 export { EmailStepExecutor } from "./steps/EmailStepExecutor";
 export { ConditionalStepExecutor } from "./steps/ConditionalStepExecutor";
+export { ForEachStepExecutor } from "./steps/ForEachStepExecutor";
 
 // Utilities
 export { ConsoleLogger } from "./utils/logger";

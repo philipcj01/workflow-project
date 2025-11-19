@@ -24,7 +24,7 @@ export const WorkflowEditor: React.FC = () => {
   const [visualWorkflow, setVisualWorkflow] = useState<VisualWorkflow | null>(
     null
   );
-  const [editorMode, setEditorMode] = useState<"visual" | "yaml">("visual");
+  const [editorMode, setEditorMode] = useState<"visual" | "yaml">("yaml");
   const [showYamlPreview, setShowYamlPreview] = useState(false);
   const [previewYaml, setPreviewYaml] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
@@ -184,10 +184,26 @@ ${Object.entries(step.params)
     setShowYamlPreview(true);
   };
 
-  const switchToYamlMode = () => {
+  const switchToYamlMode = async () => {
     if (visualWorkflow) {
       const yamlContent = generateYamlFromVisual(visualWorkflow);
       setYamlContent(yamlContent);
+
+      // Automatically save when switching from visual to YAML mode
+      if (isEditMode && workflowId) {
+        try {
+          await updateWorkflow(workflowId, yamlContent);
+          showSuccess(
+            "Workflow automatically saved when switching to YAML mode!"
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to auto-save workflow";
+          showError(errorMessage, "Auto-save Failed");
+        }
+      }
     }
     setEditorMode("yaml");
   };
@@ -283,28 +299,6 @@ steps:
       <div className="editor-header">
         <h2>{isEditMode ? "Edit Workflow" : "Create New Workflow"}</h2>
 
-        <div className="editor-mode-toggle">
-          <button
-            onClick={() => setEditorMode("visual")}
-            className={`mode-btn ${editorMode === "visual" ? "active" : ""}`}
-            disabled={
-              editorMode === "yaml" &&
-              yamlContent.trim() !== "" &&
-              !visualWorkflow
-            }
-          >
-            <Palette size={16} />
-            Visual
-          </button>
-          <button
-            onClick={switchToYamlMode}
-            className={`mode-btn ${editorMode === "yaml" ? "active" : ""}`}
-          >
-            <Code size={16} />
-            YAML
-          </button>
-        </div>
-
         <div className="editor-actions">
           {isEditMode && (
             <button onClick={() => navigate("/")} className="cancel-button">
@@ -326,34 +320,58 @@ steps:
       </div>
 
       <div className="editor-container">
-        {editorMode === "visual" ? (
-          <VisualWorkflowBuilder
-            initialWorkflow={visualWorkflow || undefined}
-            onSave={handleVisualSave}
-            onPreview={handlePreview}
-            isEditMode={isEditMode}
-          />
-        ) : (
-          <>
-            <textarea
-              value={yamlContent}
-              onChange={(e) => setYamlContent(e.target.value)}
-              placeholder="Enter your workflow YAML here..."
-              className="yaml-editor"
-              rows={20}
-            />
-            <div className="yaml-editor-actions">
+        <div className="editor-box">
+          <div className="editor-box-header">
+            <div className="editor-mode-toggle" data-active={editorMode}>
+              <button
+                onClick={switchToYamlMode}
+                className={`mode-btn ${editorMode === "yaml" ? "active" : ""}`}
+              >
+                <Code size={16} />
+                YAML
+              </button>
               <button
                 onClick={switchToVisualMode}
-                className="switch-button"
+                className={`mode-btn ${
+                  editorMode === "visual" ? "active" : ""
+                }`}
                 disabled={!yamlContent.trim()}
               >
                 <Palette size={16} />
-                Switch to Visual
+                Visual
               </button>
             </div>
-          </>
-        )}
+          </div>
+
+          <div className="editor-content">
+            <div
+              className={`editor-view yaml-view ${
+                editorMode === "yaml" ? "active" : ""
+              }`}
+            >
+              <textarea
+                value={yamlContent}
+                onChange={(e) => setYamlContent(e.target.value)}
+                placeholder="Enter your workflow YAML here..."
+                className="yaml-editor"
+                rows={20}
+              />
+            </div>
+
+            <div
+              className={`editor-view visual-view ${
+                editorMode === "visual" ? "active" : ""
+              }`}
+            >
+              <VisualWorkflowBuilder
+                initialWorkflow={visualWorkflow || undefined}
+                onSave={handleVisualSave}
+                onPreview={handlePreview}
+                isEditMode={isEditMode}
+              />
+            </div>
+          </div>
+        </div>
 
         <button onClick={handleSave} disabled={loading} className="save-button">
           <Save size={16} />

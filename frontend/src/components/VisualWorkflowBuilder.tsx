@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Play, Eye } from "lucide-react";
+import { Play, Eye, AlignLeft } from "lucide-react";
 import { StepPalette } from "./workflow-builder/StepPalette";
 import { WorkflowCanvas } from "./workflow-builder/WorkflowCanvas";
 import { StepConfigPanel } from "./workflow-builder/StepConfigPanel";
@@ -152,6 +152,18 @@ ${Object.entries(step.params)
     onPreview(yaml);
   };
 
+  const prettifyWorkflow = () => {
+    setWorkflow((prev: VisualWorkflow) => {
+      const updatedSteps = prev.steps.map(
+        (step: WorkflowStep, index: number) => ({
+          ...step,
+          position: { x: 60, y: index * 180 + 60 },
+        })
+      );
+      return { ...prev, steps: updatedSteps };
+    });
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="visual-workflow-builder">
@@ -188,9 +200,13 @@ ${Object.entries(step.params)
               <Eye size={16} />
               Preview YAML
             </button>
+            <button onClick={prettifyWorkflow} className="prettify-button">
+              <AlignLeft size={16} />
+              Prettify
+            </button>
             <button onClick={handleSave} className="save-button">
               <Play size={16} />
-              {isEditMode ? "Update Workflow" : "Save Workflow"}
+              {isEditMode ? "Update" : "Save"}
             </button>
           </div>
         </div>

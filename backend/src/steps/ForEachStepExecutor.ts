@@ -265,6 +265,28 @@ export class ForEachStepExecutor implements StepExecutor {
       return expression;
     }
 
+    // If the entire expression is a single variable reference, return the actual value
+    const singleVarMatch = expression.match(/^\$\{([^}]+)\}$/);
+    if (singleVarMatch) {
+      const path = singleVarMatch[1];
+      const keys = path.split(".");
+      let value: any = {
+        variables: context.variables,
+        steps: context.steps,
+      };
+
+      for (const key of keys) {
+        if (value && typeof value === "object" && key in value) {
+          value = value[key];
+        } else {
+          throw new Error(`Variable path not found: ${path}`);
+        }
+      }
+
+      return value;
+    }
+
+    // For string interpolation, replace variables with their string representations
     return expression.replace(/\$\{([^}]+)\}/g, (match, path) => {
       const keys = path.split(".");
       let value: any = {

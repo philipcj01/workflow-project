@@ -105,4 +105,8 @@ export const executionService = {
     );
     return response.data;
   },
+
+  async clearExecutions(): Promise<void> {
+    await apiClient.delete("/executions");
+  },
 };

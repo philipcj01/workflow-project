@@ -77,6 +77,7 @@ export interface Storage {
   getRun(id: string): Promise<WorkflowRun | null>;
   listRuns(workflowName?: string): Promise<WorkflowRun[]>;
   updateRun(id: string, updates: Partial<WorkflowRun>): Promise<void>;
+  clearAllRuns(): Promise<void>;
 }
 
 // Plugin interface

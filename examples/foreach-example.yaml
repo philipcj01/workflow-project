@@ -1,0 +1,118 @@
+name: "User Processing Pipeline"
+description: "Demonstrates for-each loops by processing multiple users"
+version: "1.0.0"
+
+variables:
+  api_base_url: "https://jsonplaceholder.typicode.com"
+  min_posts_threshold: 5
+
+steps:
+  - name: "fetch_users"
+    type: "http"
+    params:
+      url: "${variables.api_base_url}/users"
+      method: "GET"
+      timeout: 10000
+    retries: 2
+    onError: "stop"
+
+  - name: "process_each_user"
+    type: "foreach"
+    params:
+      items: "${steps.fetch_users.data.data}"
+      itemVariable: "user"
+      indexVariable: "userIndex"
+      steps:
+        - name: "log_user_start"
+          type: "log"
+          params:
+            message: "Processing user ${variables.userIndex + 1}: ${variables.user.name} (${variables.user.email})"
+            level: "info"
+
+        - name: "fetch_user_posts"
+          type: "http"
+          params:
+            url: "${variables.api_base_url}/users/${variables.user.id}/posts"
+            method: "GET"
+            timeout: 5000
+          retries: 1
+          onError: "continue"
+
+        - name: "analyze_user_activity"
+          type: "script"
+          params:
+            language: "javascript"
+            code: |
+              const user = context.variables.user;
+              const posts = context.steps.fetch_user_posts?.data?.data || [];
+              const isActive = posts.length >= context.variables.min_posts_threshold;
+              
+              console.log(`User ${user.name} has ${posts.length} posts`);
+              
+              return {
+                userId: user.id,
+                userName: user.name,
+                email: user.email,
+                postsCount: posts.length,
+                isActive: isActive,
+                company: user.company?.name || 'Unknown',
+                website: user.website || 'None'
+              };
+
+        - name: "log_user_summary"
+          type: "log"
+          params:
+            message: "✅ User ${variables.user.name}: ${steps.analyze_user_activity.data.postsCount} posts, Active: ${steps.analyze_user_activity.data.isActive}"
+            level: "info"
+
+  - name: "generate_summary_report"
+    type: "script"
+    params:
+      language: "javascript"
+      code: |
+        const foreachResults = context.steps.process_each_user.data.results;
+        
+        const totalUsers = foreachResults.length;
+        const activeUsers = foreachResults.filter(result => 
+          result?.steps?.analyze_user_activity?.data?.isActive
+        ).length;
+        
+        const totalPosts = foreachResults.reduce((sum, result) => {
+          return sum + (result?.steps?.analyze_user_activity?.data?.postsCount || 0);
+        }, 0);
+        
+        const report = {
+          timestamp: new Date().toISOString(),
+          summary: {
+            totalUsers: totalUsers,
+            activeUsers: activeUsers,
+            inactiveUsers: totalUsers - activeUsers,
+            totalPosts: totalPosts,
+            averagePostsPerUser: Math.round(totalPosts / totalUsers * 100) / 100
+          },
+          topActiveUsers: foreachResults
+            .filter(result => result?.steps?.analyze_user_activity?.data)
+            .map(result => result.steps.analyze_user_activity.data)
+            .sort((a, b) => b.postsCount - a.postsCount)
+            .slice(0, 3)
+            .map(user => ({
+              name: user.userName,
+              email: user.email,
+              posts: user.postsCount,
+              company: user.company
+            }))
+        };
+        
+        console.log('📊 Summary Report Generated:');
+        console.log(`- Total Users: ${report.summary.totalUsers}`);
+        console.log(`- Active Users: ${report.summary.activeUsers}`);
+        console.log(`- Total Posts: ${report.summary.totalPosts}`);
+        console.log(`- Average Posts per User: ${report.summary.averagePostsPerUser}`);
+        
+        return report;
+
+  - name: "log_completion"
+    type: "log"
+    params:
+      message: "🎉 User processing pipeline completed! Processed ${steps.generate_summary_report.data.summary.totalUsers} users with ${steps.generate_summary_report.data.summary.activeUsers} active users."
+      level: "info"

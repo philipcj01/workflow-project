@@ -68,7 +68,40 @@ export async function startDashboard(
 
   wss.on("connection", (ws) => {
     clients.add(ws);
-    ws.on("close", () => clients.delete(ws));
+    console.log(`WebSocket client connected. Total clients: ${clients.size}`);
+
+    // Send connection confirmation
+    ws.send(
+      JSON.stringify({ type: "connection_established", timestamp: new Date() })
+    );
+
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        // Handle ping message for keepalive
+        if (message.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", timestamp: new Date() }));
+          return;
+        }
+
+        // Handle other message types here if needed
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    });
+
+    ws.on("close", () => {
+      clients.delete(ws);
+      console.log(
+        `WebSocket client disconnected. Total clients: ${clients.size}`
+      );
+    });
+
+    ws.on("error", (error) => {
+      console.error("WebSocket error:", error);
+      clients.delete(ws);
+    });
   });
 
   function broadcast(data: any) {
@@ -76,10 +109,23 @@ export async function startDashboard(
     clients.forEach((client) => {
       if (client.readyState === 1) {
         // WebSocket.OPEN
-        client.send(message);
+        try {
+          client.send(message);
+        } catch (error) {
+          console.error("Error sending WebSocket message:", error);
+          clients.delete(client);
+        }
       }
     });
   }
+
+  // Connect WorkflowEngine events to WebSocket broadcasts
+  engine.onEvent((event) => {
+    broadcast({
+      type: "workflow_event",
+      event: event,
+    });
+  });
 
   // REST API Routes for React Frontend
 
@@ -360,6 +406,28 @@ export async function startDashboard(
       console.error("Error in /api/executions endpoint:", error);
       // Always return an empty array instead of an error for listing executions
       res.json([]);
+    }
+  });
+
+  // Clear all executions
+  app.delete("/api/executions", async (req, res) => {
+    try {
+      console.log("Attempting to clear all executions");
+
+      // Clear all runs from storage
+      await storage.clearAllRuns();
+
+      console.log("Successfully cleared all executions");
+
+      // Broadcast update to connected clients
+      broadcast({ type: "executions_cleared" });
+
+      res.json({ message: "All executions cleared successfully" });
+    } catch (error) {
+      console.error("Error in DELETE /api/executions:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 

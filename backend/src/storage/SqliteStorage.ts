@@ -133,6 +133,13 @@ export class SqliteStorage implements Storage {
     );
   }
 
+  async clearAllRuns(): Promise<void> {
+    await this.ensureInitialized();
+    const runDb = promisify(this.db.run.bind(this.db)) as any;
+
+    await runDb("DELETE FROM workflow_runs");
+  }
+
   private mapRowToRun(row: any): WorkflowRun {
     return {
       id: row.id,

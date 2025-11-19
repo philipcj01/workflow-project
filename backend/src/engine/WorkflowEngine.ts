@@ -12,15 +12,48 @@ import {
 import { ConsoleLogger } from "../utils/logger";
 import { evaluateCondition } from "../utils/conditions";
 
+// Event types for real-time updates
+export interface WorkflowEvent {
+  type:
+    | "workflow_started"
+    | "step_started"
+    | "step_completed"
+    | "step_failed"
+    | "workflow_completed"
+    | "workflow_failed";
+  runId: string;
+  workflowName: string;
+  timestamp: Date;
+  data?: any;
+}
+
+export type EventCallback = (event: WorkflowEvent) => void;
+
 export class WorkflowEngine {
   private stepExecutors: Map<string, StepExecutor> = new Map();
   private storage: Storage;
   private logger: Logger;
   private plugins: Plugin[] = [];
+  private eventCallbacks: EventCallback[] = [];
 
   constructor(storage: Storage, logger?: Logger) {
     this.storage = storage;
     this.logger = logger || new ConsoleLogger();
+  }
+
+  // Add method to register event callbacks for real-time updates
+  onEvent(callback: EventCallback): void {
+    this.eventCallbacks.push(callback);
+  }
+
+  private emitEvent(event: WorkflowEvent): void {
+    this.eventCallbacks.forEach((callback) => {
+      try {
+        callback(event);
+      } catch (error) {
+        this.logger.error("Error in event callback:", error);
+      }
+    });
   }
 
   registerStepExecutor(executor: StepExecutor): void {
@@ -57,6 +90,18 @@ export class WorkflowEngine {
       `Starting workflow execution: ${workflow.name} (${runId})`
     );
 
+    // Emit workflow started event
+    this.emitEvent({
+      type: "workflow_started",
+      runId,
+      workflowName: workflow.name,
+      timestamp: new Date(),
+      data: {
+        variables: run.variables,
+        totalSteps: workflow.steps.length,
+      },
+    });
+
     try {
       // Save initial run
       await this.storage.saveRun(run);
@@ -72,7 +117,8 @@ export class WorkflowEngine {
       }
 
       // Execute steps
-      for (const step of workflow.steps) {
+      for (let i = 0; i < workflow.steps.length; i++) {
+        const step = workflow.steps[i];
         const context: StepContext = {
           workflow,
           variables: run.variables,
@@ -87,8 +133,38 @@ export class WorkflowEngine {
           this.logger.info(
             `Skipping step '${step.name}' - condition not met: ${step.condition}`
           );
+
+          // Emit step skipped event
+          this.emitEvent({
+            type: "step_completed",
+            runId,
+            workflowName: workflow.name,
+            timestamp: new Date(),
+            data: {
+              stepName: step.name,
+              stepIndex: i,
+              status: "skipped",
+              reason: "Condition not met",
+              condition: step.condition,
+            },
+          });
+
           continue;
         }
+
+        // Emit step started event
+        this.emitEvent({
+          type: "step_started",
+          runId,
+          workflowName: workflow.name,
+          timestamp: new Date(),
+          data: {
+            stepName: step.name,
+            stepIndex: i,
+            stepType: step.type,
+            params: step.params,
+          },
+        });
 
         // Execute beforeStep hooks
         for (const plugin of this.plugins) {
@@ -99,6 +175,39 @@ export class WorkflowEngine {
 
         const result = await this.executeStep(step, context);
         run.steps[step.name] = result;
+
+        // Emit step completion event
+        if (result.success) {
+          this.emitEvent({
+            type: "step_completed",
+            runId,
+            workflowName: workflow.name,
+            timestamp: new Date(),
+            data: {
+              stepName: step.name,
+              stepIndex: i,
+              status: "completed",
+              duration: result.duration,
+              retries: result.retries,
+              output: result.data,
+            },
+          });
+        } else {
+          this.emitEvent({
+            type: "step_failed",
+            runId,
+            workflowName: workflow.name,
+            timestamp: new Date(),
+            data: {
+              stepName: step.name,
+              stepIndex: i,
+              status: "failed",
+              duration: result.duration,
+              retries: result.retries,
+              error: result.error,
+            },
+          });
+        }
 
         // Execute afterStep hooks
         for (const plugin of this.plugins) {
@@ -144,6 +253,21 @@ export class WorkflowEngine {
         }
       }
 
+      // Emit workflow completion event
+      this.emitEvent({
+        type:
+          run.status === "completed" ? "workflow_completed" : "workflow_failed",
+        runId,
+        workflowName: workflow.name,
+        timestamp: new Date(),
+        data: {
+          status: run.status,
+          duration: run.endTime.getTime() - run.startTime.getTime(),
+          totalSteps: Object.keys(run.steps).length,
+          error: run.error,
+        },
+      });
+
       this.logger.info(
         `Workflow execution completed: ${workflow.name} (${runId}) - Status: ${run.status}`
       );
@@ -157,6 +281,19 @@ export class WorkflowEngine {
         status: run.status,
         endTime: run.endTime,
         error: run.error,
+      });
+
+      // Emit workflow failed event
+      this.emitEvent({
+        type: "workflow_failed",
+        runId,
+        workflowName: workflow.name,
+        timestamp: new Date(),
+        data: {
+          status: "failed",
+          error: run.error,
+          duration: run.endTime.getTime() - run.startTime.getTime(),
+        },
       });
 
       this.logger.error(
